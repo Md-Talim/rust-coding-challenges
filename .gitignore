@@ -1,0 +1,15 @@
+# Compiled files
+/target/
+
+# Backup / generated files
+**/*.rs.bk
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+
