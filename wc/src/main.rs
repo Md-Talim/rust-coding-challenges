@@ -39,6 +39,29 @@ fn count_lines(filename: &String) {
     println!("{:8} {}", line_count, filename);
 }
 
+fn count_words(filename: &String) {
+    let file = match File::open(filename) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error opening file {}: {}", filename, e);
+            std::process::exit(1);
+        }
+    };
+
+    let reader = BufReader::new(file);
+    let mut word_count = 0;
+    for line in reader.lines() {
+        match line {
+            Ok(content) => word_count += content.split_whitespace().count(),
+            Err(e) => {
+                eprintln!("Error reading line: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+    println!("{:8} {}", word_count, filename);
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -53,6 +76,7 @@ fn main() {
     match flag.as_str() {
         "-c" => count_bytes(filename),
         "-l" => count_lines(filename),
+        "-w" => count_words(filename),
         _ => println!("Unknown option {}", flag),
     }
 }
