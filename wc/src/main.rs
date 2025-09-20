@@ -52,3 +52,18 @@ fn main() {
         Err(e) => eprintln!("Error: {}", e),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_with_challenge_file() {
+        let filename = "test.txt".to_string();
+        let stats = compute_stats(&filename).unwrap();
+
+        assert_eq!(stats.bytes, 342190);
+        assert_eq!(stats.lines, 7145);
+        assert_eq!(stats.words, 58164);
+    }
+}
