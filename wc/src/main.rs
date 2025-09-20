@@ -1,7 +1,7 @@
 use std::{
     env,
     fs::File,
-    io::{BufReader, Read},
+    io::{self, BufReader, Read},
 };
 
 struct FileStats {
@@ -11,13 +11,11 @@ struct FileStats {
     chars: usize,
 }
 
-fn compute_stats(filename: &String) -> Result<FileStats, std::io::Error> {
-    let file = File::open(filename)?;
-    let bytes = file.metadata()?.len();
-
-    let mut reader = BufReader::new(file);
+fn compute_stats<R: Read>(reader: R) -> io::Result<FileStats> {
+    let mut reader = BufReader::new(reader);
     let mut buffer = [0; 4096]; // read in 4KB chunks
 
+    let mut bytes: u64 = 0;
     let mut lines = 0;
     let mut words = 0;
     let mut chars = 0;
@@ -30,6 +28,8 @@ fn compute_stats(filename: &String) -> Result<FileStats, std::io::Error> {
         if n == 0 {
             break;
         }
+
+        bytes += n as u64;
 
         let mut chunk = leftover.clone();
         chunk.extend_from_slice(&buffer[..n]);
@@ -69,30 +69,48 @@ fn compute_stats(filename: &String) -> Result<FileStats, std::io::Error> {
     });
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 2 {
-        eprintln!("Usage: {} -c/-l/-w/-m <filename>", args[0]);
-        std::process::exit(1);
-    }
-
-    let flag = if args.len() > 2 { &args[1] } else { "" };
-    let filename = if args.len() > 2 { &args[2] } else { &args[1] };
-
-    match compute_stats(filename) {
-        Ok(stats) => match flag {
-            "-c" => println!("{:8} {}", stats.bytes, filename),
-            "-l" => println!("{:8} {}", stats.lines, filename),
-            "-w" => println!("{:8} {}", stats.words, filename),
-            "-m" => println!("{:8} {}", stats.chars, filename),
-            _ => println!(
-                "{:8} {:8} {:8} {}",
-                stats.lines, stats.words, stats.bytes, filename
-            ),
+    let (flag, filename) = match args.len() {
+        1 => ("", None),
+        2 => {
+            let arg = &args[1];
+            if arg.starts_with('-') {
+                (arg.as_str(), None)
+            } else {
+                ("", Some(arg))
+            }
+        }
+        3 => {
+            let flag = &args[1];
+            (flag.as_str(), Some(&args[2]))
         },
-        Err(e) => eprintln!("Error: {}", e),
+        _ => {
+            eprintln!("Usage: {} [-c/-l/-w-/-m] [filename]", args[0]);
+            std::process::exit(1);
+        }
+    };
+
+    let stats = if let Some(fname) = filename {
+        compute_stats(File::open(fname)?)?
+    } else {
+        compute_stats(io::stdin().lock())?
+    };
+
+    match flag {
+        "-c" => print!("{:8}", stats.bytes),
+        "-l" => print!("{:8}", stats.lines),
+        "-w" => print!("{:8}", stats.words),
+        "-m" => print!("{:8}", stats.chars),
+        _ => print!("{:8} {:8} {:8}", stats.lines, stats.words, stats.bytes),
     }
+
+    if let Some(fname) = filename {
+        print!(" {}\n", fname);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -102,7 +120,7 @@ mod tests {
     #[test]
     fn test_with_challenge_file() {
         let filename = "test.txt".to_string();
-        let stats = compute_stats(&filename).unwrap();
+        let stats = compute_stats(File::open(filename).unwrap()).unwrap();
 
         assert_eq!(stats.bytes, 342190);
         assert_eq!(stats.lines, 7145);
