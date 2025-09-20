@@ -72,21 +72,24 @@ fn compute_stats(filename: &String) -> Result<FileStats, std::io::Error> {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 3 {
+    if args.len() < 2 {
         eprintln!("Usage: {} -c/-l/-w/-m <filename>", args[0]);
         std::process::exit(1);
     }
 
-    let flag = &args[1];
-    let filename = &args[2];
+    let flag = if args.len() > 2 { &args[1] } else { "" };
+    let filename = if args.len() > 2 { &args[2] } else { &args[1] };
 
     match compute_stats(filename) {
-        Ok(stats) => match flag.as_str() {
+        Ok(stats) => match flag {
             "-c" => println!("{:8} {}", stats.bytes, filename),
             "-l" => println!("{:8} {}", stats.lines, filename),
             "-w" => println!("{:8} {}", stats.words, filename),
             "-m" => println!("{:8} {}", stats.chars, filename),
-            _ => println!("Unknown option {}", flag),
+            _ => println!(
+                "{:8} {:8} {:8} {}",
+                stats.lines, stats.words, stats.bytes, filename
+            ),
         },
         Err(e) => eprintln!("Error: {}", e),
     }
