@@ -1,65 +1,35 @@
 use std::{
     env,
-    fs::{self, File},
+    fs::File,
     io::{BufRead, BufReader},
 };
 
-fn count_bytes(filename: &String) {
-    match fs::read(filename) {
-        Ok(data) => {
-            println!("{:8} {}", data.len(), filename);
-        }
-        Err(e) => {
-            eprintln!("Error reading file {}: {}", e, filename);
-            std::process::exit(1);
-        }
-    }
+struct FileStats {
+    bytes: usize,
+    lines: usize,
+    words: usize,
 }
 
-fn count_lines(filename: &String) {
-    let file = match File::open(filename) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error opening file {}: {}", filename, e);
-            std::process::exit(1);
-        }
-    };
-
+fn compute_stats(filename: &String) -> Result<FileStats, std::io::Error> {
+    let file = File::open(filename)?;
     let reader = BufReader::new(file);
-    let mut line_count = 0;
-    for line in reader.lines() {
-        match line {
-            Ok(_) => line_count += 1,
-            Err(e) => {
-                eprintln!("Error reading line: {}", e);
-                std::process::exit(1);
-            }
-        }
-    }
-    println!("{:8} {}", line_count, filename);
-}
 
-fn count_words(filename: &String) {
-    let file = match File::open(filename) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Error opening file {}: {}", filename, e);
-            std::process::exit(1);
-        }
-    };
+    let mut bytes = 0;
+    let mut lines = 0;
+    let mut words = 0;
 
-    let reader = BufReader::new(file);
-    let mut word_count = 0;
-    for line in reader.lines() {
-        match line {
-            Ok(content) => word_count += content.split_whitespace().count(),
-            Err(e) => {
-                eprintln!("Error reading line: {}", e);
-                std::process::exit(1);
-            }
-        }
+    for line_result in reader.lines() {
+        let line = line_result?;
+        bytes += line.len() + 1; // +1 for the stripped newline
+        lines += 1;
+        words += line.split_whitespace().count();
     }
-    println!("{:8} {}", word_count, filename);
+
+    return Ok(FileStats {
+        bytes,
+        lines,
+        words,
+    });
 }
 
 fn main() {
@@ -73,10 +43,13 @@ fn main() {
     let flag = &args[1];
     let filename = &args[2];
 
-    match flag.as_str() {
-        "-c" => count_bytes(filename),
-        "-l" => count_lines(filename),
-        "-w" => count_words(filename),
-        _ => println!("Unknown option {}", flag),
+    match compute_stats(filename) {
+        Ok(stats) => match flag.as_str() {
+            "-c" => println!("{:8} {}", stats.bytes, filename),
+            "-l" => println!("{:8} {}", stats.lines, filename),
+            "-w" => println!("{:8} {}", stats.words, filename),
+            _ => println!("Unknown option {}", flag),
+        },
+        Err(e) => eprintln!("Error: {}", e),
     }
 }
