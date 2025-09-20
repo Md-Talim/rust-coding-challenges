@@ -1,11 +1,11 @@
 use std::{
     env,
-    fs::File,
+    fs::{self, File},
     io::{BufRead, BufReader},
 };
 
 struct FileStats {
-    bytes: usize,
+    bytes: u64,
     lines: usize,
     words: usize,
 }
@@ -14,13 +14,12 @@ fn compute_stats(filename: &String) -> Result<FileStats, std::io::Error> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
 
-    let mut bytes = 0;
+    let bytes = fs::metadata(filename)?.len();
     let mut lines = 0;
     let mut words = 0;
 
     for line_result in reader.lines() {
         let line = line_result?;
-        bytes += line.len() + 1; // +1 for the stripped newline
         lines += 1;
         words += line.split_whitespace().count();
     }
