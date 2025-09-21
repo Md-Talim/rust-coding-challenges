@@ -69,45 +69,122 @@ fn compute_stats<R: Read>(reader: R) -> io::Result<FileStats> {
     });
 }
 
-fn main() -> io::Result<()> {
-    let args: Vec<String> = env::args().collect();
+struct ParsedArgs {
+    flags: Vec<char>,
+    files: Vec<String>,
+}
 
-    let (flag, filename) = match args.len() {
-        1 => ("", None),
-        2 => {
-            let arg = &args[1];
-            if arg.starts_with('-') {
-                (arg.as_str(), None)
-            } else {
-                ("", Some(arg))
+fn parse_args() -> ParsedArgs {
+    let args: Vec<String> = env::args().skip(1).collect();
+
+    let mut flags = Vec::new();
+    let mut files = Vec::new();
+
+    for arg in args {
+        if arg.starts_with('-') {
+            for c in arg.chars().skip(1) {
+                flags.push(c);
             }
+        } else {
+            files.push(arg);
         }
-        3 => {
-            let flag = &args[1];
-            (flag.as_str(), Some(&args[2]))
-        },
-        _ => {
-            eprintln!("Usage: {} [-c/-l/-w-/-m] [filename]", args[0]);
-            std::process::exit(1);
-        }
-    };
-
-    let stats = if let Some(fname) = filename {
-        compute_stats(File::open(fname)?)?
-    } else {
-        compute_stats(io::stdin().lock())?
-    };
-
-    match flag {
-        "-c" => print!("{:8}", stats.bytes),
-        "-l" => print!("{:8}", stats.lines),
-        "-w" => print!("{:8}", stats.words),
-        "-m" => print!("{:8}", stats.chars),
-        _ => print!("{:8} {:8} {:8}", stats.lines, stats.words, stats.bytes),
     }
 
-    if let Some(fname) = filename {
-        print!(" {}\n", fname);
+    ParsedArgs { flags, files }
+}
+
+fn main() -> io::Result<()> {
+    let parsed = parse_args();
+
+    if parsed.files.len() == 0 {
+        let stats = compute_stats(io::stdin().lock())?;
+
+        if parsed.flags.len() == 0 {
+            print!("{:8} {:8} {:8}", stats.lines, stats.words, stats.bytes);
+        }
+
+        for flag in &parsed.flags {
+            match flag {
+                'c' => print!("{:8}", stats.bytes),
+                'l' => print!("{:8}", stats.lines),
+                'w' => print!("{:8}", stats.words),
+                'm' => print!("{:8}", stats.chars),
+                _ => print!("{:8} {:8} {:8}", stats.lines, stats.words, stats.bytes),
+            }
+        }
+    }
+
+    let mut total_stats = FileStats {
+        bytes: 0,
+        chars: 0,
+        lines: 0,
+        words: 0,
+    };
+
+    for file in &parsed.files {
+        let stats = compute_stats(File::open(&file)?)?;
+
+        if parsed.flags.len() == 0 {
+            print!(
+                "{:8} {:8} {:8} {}\n",
+                stats.lines, stats.words, stats.bytes, file
+            );
+            total_stats.lines += stats.lines;
+            total_stats.words += stats.words;
+            total_stats.bytes += stats.bytes;
+            continue;
+        }
+
+        for flag in &parsed.flags {
+            match flag {
+                'c' => {
+                    print!("{:8} ", stats.bytes);
+                    total_stats.bytes += stats.bytes;
+                }
+                'l' => {
+                    print!("{:8} ", stats.lines);
+                    total_stats.lines += stats.lines;
+                }
+                'w' => {
+                    print!("{:8} ", stats.words);
+                    total_stats.words += stats.words;
+                }
+                'm' => {
+                    print!("{:8} ", stats.chars);
+                    total_stats.chars += stats.chars;
+                }
+                _ => {
+                    eprintln!("wc: invalid option -- {}", flag);
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        print!("{}\n", file);
+    }
+
+    if parsed.flags.len() == 0 {
+        print!(
+            "{:8} {:8} {:8} ",
+            total_stats.lines, total_stats.words, total_stats.bytes
+        );
+    }
+
+    for flag in &parsed.flags {
+        match flag {
+            'c' => print!("{:8} ", total_stats.bytes),
+            'l' => print!("{:8} ", total_stats.lines),
+            'w' => print!("{:8} ", total_stats.words),
+            'm' => print!("{:8} ", total_stats.chars),
+            _ => {
+                eprintln!("wc: invalid option -- {}", flag);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    if parsed.files.len() > 0 {
+        print!("total\n");
     }
 
     Ok(())
