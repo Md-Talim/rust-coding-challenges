@@ -4,23 +4,26 @@ mod stats;
 use args::parse_args;
 use stats::{FileStats, compute_stats};
 use std::{
-    fs::File,
-    io::{self},
+    collections::HashSet, fs::File, io::{self}
 };
 
-fn print_stats(stats: &FileStats, flags: &[char], filename: Option<&str>) {
+fn print_stats(stats: &FileStats, flags: &HashSet<char>, filename: Option<&str>) {
+    let print_order = ['l', 'w', 'm', 'c'];
+
     if flags.is_empty() {
         print!("{:8} {:8} {:8}", stats.lines, stats.words, stats.bytes);
     } else {
-        for flag in flags {
-            match flag {
-                'c' => print!("{:8}", stats.bytes),
-                'l' => print!("{:8}", stats.lines),
-                'w' => print!("{:8}", stats.words),
-                'm' => print!("{:8}", stats.chars),
-                _ => {
-                    eprintln!("wc: invalid option -- {}", flag);
-                    std::process::exit(1);
+        for flag in print_order {
+            if flags.contains(&flag) {
+                match flag {
+                    'c' => print!("{:8}", stats.bytes),
+                    'l' => print!("{:8}", stats.lines),
+                    'w' => print!("{:8}", stats.words),
+                    'm' => print!("{:8}", stats.chars),
+                    _ => {
+                        eprintln!("wc: invalid option -- {}", flag);
+                        std::process::exit(1);
+                    }
                 }
             }
         }
