@@ -2,7 +2,7 @@ use std::io::{self, BufReader, Read};
 
 #[derive(Default)]
 pub struct FileStats {
-    pub bytes: u64,
+    pub bytes: usize,
     pub lines: usize,
     pub words: usize,
     pub chars: usize,
@@ -21,7 +21,7 @@ pub fn compute_stats<R: Read>(reader: R) -> io::Result<FileStats> {
     let mut reader = BufReader::new(reader);
     let mut buffer = [0; 4096]; // read in 4KB chunks
 
-    let mut bytes: u64 = 0;
+    let mut bytes = 0;
     let mut lines = 0;
     let mut words = 0;
     let mut chars = 0;
@@ -35,7 +35,7 @@ pub fn compute_stats<R: Read>(reader: R) -> io::Result<FileStats> {
             break;
         }
 
-        bytes += n as u64;
+        bytes += n;
 
         let mut chunk = leftover.clone();
         chunk.extend_from_slice(&buffer[..n]);

@@ -8,23 +8,19 @@ use std::{
 };
 
 fn print_stats(stats: &FileStats, flags: &HashSet<char>, filename: Option<&str>) {
-    let print_order = ['l', 'w', 'm', 'c'];
+    let values = [
+        ('l', stats.lines),
+        ('w', stats.words),
+        ('m', stats.chars),
+        ('c', stats.bytes),
+    ];
 
     if flags.is_empty() {
         print!("{:8} {:8} {:8}", stats.lines, stats.words, stats.bytes);
     } else {
-        for flag in print_order {
+        for (flag, value) in values {
             if flags.contains(&flag) {
-                match flag {
-                    'c' => print!("{:8}", stats.bytes),
-                    'l' => print!("{:8}", stats.lines),
-                    'w' => print!("{:8}", stats.words),
-                    'm' => print!("{:8}", stats.chars),
-                    _ => {
-                        eprintln!("wc: invalid option -- {}", flag);
-                        std::process::exit(1);
-                    }
-                }
+                print!("{:8}", value);
             }
         }
     }
