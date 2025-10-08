@@ -160,20 +160,14 @@ fn parse_json(input: &str) -> Result<JsonValue, String> {
 
     let tokens = match lexer.tokenize() {
         Ok(tokens) => tokens,
-        Err(msg) => {
-            eprintln!("Lexer error: {}", msg);
-            exit(1);
-        }
+        Err(msg) => return Err(format!("Lexer error: {}", msg)),
     };
 
     let mut parser = Parser::new(tokens);
     match parser.parse_value() {
-        Ok(v) => return Ok(v),
-        Err(msg) => {
-            eprintln!("Parse error: {}", msg);
-            exit(1);
-        }
-    };
+        Ok(v) => Ok(v),
+        Err(msg) => Err(format!("Parse error: {}", msg)),
+    }
 }
 
 fn main() {
@@ -183,7 +177,13 @@ fn main() {
         exit(1);
     }
 
-    let _ = parse_json(&input);
+    match parse_json(&input) {
+        Ok(_) => {}
+        Err(err) => {
+            eprintln!("{}", err);
+            exit(1);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -204,7 +204,8 @@ mod tests {
     #[test]
     fn test_invalid_object() {
         let result = parse_json("{");
-        assert_eq!(result, Err("Invalid JSON".into()));
+        let expected_result = String::from("Parse error: Unexpected token 'EOF' at position 1");
+        assert_eq!(result, Err(expected_result));
     }
 
     #[test]
