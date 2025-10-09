@@ -1,4 +1,5 @@
 mod ast;
+mod error;
 mod lexer;
 mod parser;
 mod token;
@@ -57,8 +58,8 @@ mod tests {
     #[test]
     fn test_invalid_object() {
         let result = parse_json("{");
-        let expected_result = String::from("Parse error: Unexpected token 'EOF' at position 1");
-        assert_eq!(result, Err(expected_result));
+        let expected_error = String::from("Parse error: Unexpected end of input");
+        assert_eq!(result, Err(expected_error));
     }
 
     #[test]

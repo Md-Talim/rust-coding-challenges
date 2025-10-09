@@ -1,4 +1,5 @@
 use crate::ast::JsonValue;
+use crate::error::{Error, Result};
 use crate::token::Token;
 use std::collections::BTreeMap;
 
@@ -20,16 +21,18 @@ impl Parser {
         self.pos += 1
     }
 
-    fn expect(&mut self, expected: Token) -> Result<(), String> {
-        if self.peek() == &expected {
-            self.bump();
-            return Ok(());
+    fn expect(&mut self, expected: Token) -> Result<()> {
+        match self.peek() {
+            token if token == &expected => {
+                self.bump();
+                return Ok(());
+            }
+            Token::EOF => Err(Error::UnexpectedEOF),
+            _ => Err(Error::ExpectedToken(format!("{:?}", expected), self.pos)),
         }
-
-        return Err(format!("Expected {:?}, got {:?}", expected, self.peek()));
     }
 
-    pub fn parse_value(&mut self) -> Result<JsonValue, String> {
+    pub fn parse_value(&mut self) -> Result<JsonValue> {
         match self.peek() {
             Token::LBrace => self.parse_object(),
             Token::StringLit(s) => {
@@ -37,11 +40,12 @@ impl Parser {
                 self.bump();
                 Ok(JsonValue::String(s2))
             }
-            other => Err(format!("Unexpected token {:?}", other)),
+            Token::EOF => Err(Error::UnexpectedEOF),
+            other => Err(Error::UnexpectedToken(format!("{:?}", other), self.pos)),
         }
     }
 
-    fn parse_object(&mut self) -> Result<JsonValue, String> {
+    fn parse_object(&mut self) -> Result<JsonValue> {
         self.expect(Token::LBrace)?;
         let mut map = BTreeMap::new();
         if self.peek() == &Token::RBrace {
@@ -58,21 +62,20 @@ impl Parser {
                     let value = self.parse_value()?;
                     map.insert(key, value);
                 }
-                other => {
-                    return Err(format!(
-                        "Unexpected token '{:?}' at position {}",
-                        other, self.pos
-                    ));
-                }
+                Token::EOF => return Err(Error::UnexpectedEOF),
+                other => return Err(Error::UnexpectedToken(format!("{:?}", other), self.pos)),
             }
-            if self.peek() == &Token::Comma {
-                self.bump();
-                continue;
-            } else if self.peek() == &Token::RBrace {
-                self.bump();
-                break;
-            } else {
-                return Err(format!("Expected ',' or '}}', got {:?}", self.peek()));
+
+            match self.peek() {
+                Token::Comma => {
+                    self.bump();
+                }
+                Token::RBrace => {
+                    self.bump();
+                    break;
+                }
+                Token::EOF => return Err(Error::UnexpectedEOF),
+                other => return Err(Error::UnexpectedToken(format!("{:?}", other), self.pos)),
             }
         }
 

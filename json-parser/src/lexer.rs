@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use crate::token::Token;
 
 pub struct Lexer<'a> {
@@ -9,7 +10,7 @@ impl<'a> Lexer<'a> {
         Self { input }
     }
 
-    pub fn tokenize(&mut self) -> Result<Vec<Token>, String> {
+    pub fn tokenize(&mut self) -> Result<Vec<Token>> {
         let mut tokens = Vec::new();
         let mut chars = self.input.char_indices().peekable();
 
@@ -30,7 +31,7 @@ impl<'a> Lexer<'a> {
                     tokens.push(Token::StringLit(string_content));
                 }
 
-                _ => return Err(format!("Unexpected character '{}' at position {}", ch, pos)),
+                _ => return Err(Error::UnexpectedChar(ch, pos)),
             }
         }
 
@@ -42,7 +43,7 @@ impl<'a> Lexer<'a> {
         &self,
         chars: &mut std::iter::Peekable<std::str::CharIndices>,
         start_pos: usize,
-    ) -> Result<String, String> {
+    ) -> Result<String> {
         let mut result = String::new();
 
         while let Some((_, ch)) = chars.next() {
@@ -52,9 +53,6 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        Err(format!(
-            "Unterminated string starting at position {}",
-            start_pos
-        ))
+        Err(Error::UnterminatedString(start_pos))
     }
 }
